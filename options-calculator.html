@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options Calculator — TPTraders</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #a78bfa;   /* violet — distinct from FX cyan and EQ green */
+    --accent-glow: rgba(167,139,250,0.15);
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #38bdf8;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --label: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #0a0e1a 0%, #110d22 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .logo { font-size: 18px; font-weight: 800; letter-spacing: -0.4px; }
+  .logo span { color: var(--accent); }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .hub-link { font-size: 12px; color: var(--label); text-decoration: none; border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; }
+  .hub-link:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; min-height: calc(100vh - 65px); }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ── LEFT PANEL — INPUTS ── */
+  .inputs-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .panel-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 20px;
+  }
+
+  /* toggle: call / put */
+  .type-toggle {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px;
+  }
+  .type-btn {
+    background: none; border: none; padding: 10px; font-size: 14px; font-weight: 700;
+    cursor: pointer; color: var(--muted); transition: background 0.15s, color 0.15s;
+  }
+  .type-btn.active.call { background: rgba(34,197,94,0.15); color: var(--green); }
+  .type-btn.active.put  { background: rgba(239,68,68,0.15);  color: var(--red);   }
+
+  /* field groups */
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--label); margin-bottom: 6px; }
+  .field input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 12px; border-radius: 7px; font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+  .field .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .btn-calc {
+    width: 100%; background: var(--accent); color: #0a0e1a; border: none;
+    padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 800;
+    cursor: pointer; letter-spacing: 0.3px; margin-top: 4px;
+    transition: opacity 0.15s;
+  }
+  .btn-calc:hover { opacity: 0.88; }
+
+  /* ── RIGHT PANEL — RESULTS ── */
+  .results-panel { padding: 24px; overflow-y: auto; }
+
+  /* verdict banner */
+  .verdict {
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 20px;
+    border: 1px solid var(--border); display: none;
+  }
+  .verdict.fair   { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); }
+  .verdict.rich   { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); }
+  .verdict.cheap  { background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.3); }
+  .verdict-label  { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .verdict.fair  .verdict-label { color: var(--green); }
+  .verdict.rich  .verdict-label { color: var(--red); }
+  .verdict.cheap .verdict-label { color: var(--blue); }
+  .verdict-text { font-size: 13px; color: var(--label); line-height: 1.6; }
+
+  /* stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 14px; }
+  .stat-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat-sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .val-green { color: var(--green); }
+  .val-red   { color: var(--red); }
+  .val-blue  { color: var(--blue); }
+  .val-yellow{ color: var(--yellow); }
+  .val-violet{ color: var(--accent); }
+
+  /* greeks row */
+  .greeks-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+  @media (max-width: 700px) { .greeks-row { grid-template-columns: repeat(3, 1fr); } }
+  .greek-card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 12px; text-align: center; }
+  .greek-sym  { font-size: 18px; font-weight: 900; margin-bottom: 2px; }
+  .greek-name { font-size: 10px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .greek-val  { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .greek-desc { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* P/L chart */
+  .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .chart-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  canvas { width: 100% !important; display: block; }
+
+  /* expected move */
+  .exp-move-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .em-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .em-track {
+    position: relative; height: 36px; background: var(--surface2); border-radius: 6px; overflow: hidden; margin-bottom: 10px;
+  }
+  .em-fill-low  { position: absolute; top:0; bottom:0; background: rgba(239,68,68,0.2); }
+  .em-fill-high { position: absolute; top:0; bottom:0; background: rgba(34,197,94,0.2); }
+  .em-center { position: absolute; top:0; bottom:0; width: 2px; background: var(--label); transform: translateX(-50%); }
+  .em-strike { position: absolute; top:0; bottom:0; width: 2px; background: var(--accent); transform: translateX(-50%); }
+  .em-needle { position: absolute; top: 50%; transform: translate(-50%,-50%); font-size: 10px; font-weight: 700; color: var(--text); white-space: nowrap; pointer-events: none; }
+  .em-numbers { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* info box */
+  .info-box { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 14px 16px; font-size: 12px; color: var(--label); line-height: 1.7; }
+  .info-box strong { color: var(--text); }
+
+  /* placeholder */
+  .placeholder { text-align: center; padding: 80px 20px; color: var(--muted); font-size: 13px; }
+  .placeholder .big { font-size: 48px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">OPTIONS <span>CALCULATOR</span></div>
+    <div class="logo-sub">Pre-trade analysis · Black-Scholes · Greeks · P&L · Fair Value</div>
+  </div>
+  <a class="hub-link" href="https://cbell0920.github.io/tptraders-hub">← Hub</a>
+</div>
+
+<div class="layout">
+
+  <!-- ── INPUTS ── -->
+  <div class="inputs-panel">
+    <div class="panel-title">Option Parameters</div>
+
+    <div class="type-toggle">
+      <button class="type-btn call active" id="btnCall" onclick="setType('call')">▲ CALL</button>
+      <button class="type-btn put"         id="btnPut"  onclick="setType('put')"> ▼ PUT</button>
+    </div>
+
+    <div class="field">
+      <label>Underlying Price (S)</label>
+      <input type="number" id="inS" placeholder="e.g. 211.50" step="0.01" />
+      <div class="hint">Current stock price</div>
+    </div>
+
+    <div class="field">
+      <label>Strike Price (K)</label>
+      <input type="number" id="inK" placeholder="e.g. 215.00" step="0.01" />
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Days to Expiry</label>
+        <input type="number" id="inDTE" placeholder="e.g. 21" min="1" />
+      </div>
+      <div class="field">
+        <label>IV % (annual)</label>
+        <input type="number" id="inIV" placeholder="e.g. 28" step="0.1" />
+        <div class="hint">e.g. 28 for 28%</div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Risk-Free Rate %</label>
+        <input type="number" id="inR" placeholder="e.g. 5.25" step="0.01" value="5.25" />
+      </div>
+      <div class="field">
+        <label>Dividend Yield %</label>
+        <input type="number" id="inQ" placeholder="e.g. 0.5" step="0.01" value="0" />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Market Premium Paid (optional)</label>
+      <input type="number" id="inMkt" placeholder="e.g. 3.45 — what you'd pay" step="0.01" />
+      <div class="hint">Enter the ask price to see if it's fair, rich, or cheap</div>
+    </div>
+
+    <div class="field">
+      <label>Contracts (optional)</label>
+      <input type="number" id="inContracts" placeholder="e.g. 1" min="1" value="1" />
+      <div class="hint">1 contract = 100 shares</div>
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">CALCULATE</button>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div class="results-panel" id="results">
+    <div class="placeholder">
+      <div class="big">⚙️</div>
+      Enter your option parameters on the left and hit <strong>Calculate</strong>.<br><br>
+      This tool prices options using Black-Scholes, calculates all Greeks,<br>
+      shows your P&amp;L at expiry, expected move range, and tells you<br>
+      whether the premium you're being asked to pay is <strong>fair, rich, or cheap</strong>.
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let optionType = 'call';
+
+function setType(t) {
+  optionType = t;
+  document.getElementById('btnCall').className = 'type-btn call' + (t==='call'?' active':'');
+  document.getElementById('btnPut').className  = 'type-btn put'  + (t==='put' ?' active':'');
+}
+
+// ── MATH ───────────────────────────────────────────────────────────────────────
+
+// Cumulative standard normal distribution (Abramowitz & Stegun approximation)
+function normCDF(x) {
+  const a1= 0.254829592, a2=-0.284496736, a3= 1.421413741,
+        a4=-1.453152027, a5= 1.061405429, p = 0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x) / Math.sqrt(2);
+  const t = 1 / (1 + p * x);
+  const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-x*x);
+  return 0.5 * (1 + sign * y);
+}
+
+function normPDF(x) {
+  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+}
+
+function blackScholes(S, K, T, r, q, sigma, type) {
+  if (T <= 0) {
+    const intrinsic = type === 'call' ? Math.max(S - K, 0) : Math.max(K - S, 0);
+    return { price: intrinsic, d1: 0, d2: 0, N_d1: 0, N_d2: 0 };
+  }
+  const d1 = (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+
+  let price;
+  if (type === 'call') {
+    price = S * Math.exp(-q * T) * normCDF(d1) - K * Math.exp(-r * T) * normCDF(d2);
+  } else {
+    price = K * Math.exp(-r * T) * normCDF(-d2) - S * Math.exp(-q * T) * normCDF(-d1);
+  }
+  return { price, d1, d2, N_d1: normCDF(d1), N_d2: normCDF(d2) };
+}
+
+function greeks(S, K, T, r, q, sigma, type, bs) {
+  const { d1, d2, N_d1, N_d2 } = bs;
+  const sqrtT = Math.sqrt(T);
+
+  let delta, gamma, theta, vega, rho;
+
+  if (T <= 0) return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
+
+  gamma = Math.exp(-q*T) * normPDF(d1) / (S * sigma * sqrtT);
+  vega  = S * Math.exp(-q*T) * normPDF(d1) * sqrtT / 100; // per 1% IV move
+
+  if (type === 'call') {
+    delta = Math.exp(-q*T) * N_d1;
+    theta = (-(S * sigma * Math.exp(-q*T) * normPDF(d1)) / (2 * sqrtT)
+              - r * K * Math.exp(-r*T) * N_d2
+              + q * S * Math.exp(-q*T) * N_d1) / 365;
+    rho   = K * T * Math.exp(-r*T) * N_d2 / 100;
+  } else {
+    delta = Math.exp(-q*T) * (N_d1 - 1);
+    theta = (-(S * sigma * Math.exp(-q*T) * normPDF(d1)) / (2 * sqrtT)
+              + r * K * Math.exp(-r*T) * normCDF(-d2)
+              - q * S * Math.exp(-q*T) * normCDF(-d1)) / 365;
+    rho   = -K * T * Math.exp(-r*T) * normCDF(-d2) / 100;
+  }
+
+  return { delta, gamma, theta, vega, rho };
+}
+
+// ── CALCULATE ─────────────────────────────────────────────────────────────────
+function calculate() {
+  const S         = parseFloat(document.getElementById('inS').value);
+  const K         = parseFloat(document.getElementById('inK').value);
+  const DTE       = parseFloat(document.getElementById('inDTE').value);
+  const IV_pct    = parseFloat(document.getElementById('inIV').value);
+  const r_pct     = parseFloat(document.getElementById('inR').value) || 5.25;
+  const q_pct     = parseFloat(document.getElementById('inQ').value) || 0;
+  const mktPrem   = parseFloat(document.getElementById('inMkt').value);
+  const contracts = parseInt(document.getElementById('inContracts').value) || 1;
+
+  if (!S || !K || !DTE || !IV_pct) {
+    alert('Please fill in Underlying Price, Strike, Days to Expiry, and IV.');
+    return;
+  }
+
+  const T     = DTE / 365;
+  const sigma = IV_pct / 100;
+  const r     = r_pct / 100;
+  const q     = q_pct / 100;
+
+  const bs = blackScholes(S, K, T, r, q, sigma, optionType);
+  const G  = greeks(S, K, T, r, q, sigma, optionType, bs);
+
+  // Expected move (1 SD move using IV)
+  const expMoveAmt = S * sigma * Math.sqrt(T);
+  const expMovePct = sigma * Math.sqrt(T) * 100;
+  const emLow  = S - expMoveAmt;
+  const emHigh = S + expMoveAmt;
+
+  // Break-even
+  const breakEvenPrice = optionType === 'call'
+    ? K + bs.price
+    : K - bs.price;
+
+  // Moneyness
+  const moneyness = optionType === 'call'
+    ? ((S - K) / K * 100).toFixed(1)
+    : ((K - S) / K * 100).toFixed(1);
+
+  // Prob ITM ≈ N(d2) for call, N(-d2) for put
+  const probITM = optionType === 'call'
+    ? bs.N_d2 * 100
+    : (1 - bs.N_d2) * 100;
+
+  // Fair value vs market
+  let verdictClass = '', verdictLabel = '', verdictText = '';
+  if (!isNaN(mktPrem) && mktPrem > 0) {
+    const diff = mktPrem - bs.price;
+    const diffPct = (diff / bs.price) * 100;
+    if (Math.abs(diffPct) < 5) {
+      verdictClass = 'fair';
+      verdictLabel = 'FAIRLY PRICED';
+      verdictText = `The market ask of $${mktPrem.toFixed(2)} is within 5% of Black-Scholes fair value ($${bs.price.toFixed(2)}). This premium is reasonable — edge comes from your directional thesis, not from getting a discount on the option.`;
+    } else if (diff > 0) {
+      verdictClass = 'rich';
+      verdictLabel = `PREMIUM IS RICH (+${diffPct.toFixed(1)}%)`;
+      verdictText = `You're being asked to pay $${mktPrem.toFixed(2)} but Black-Scholes values this at $${bs.price.toFixed(2)} — that's $${diff.toFixed(2)} above fair value. Implied volatility may be elevated. Consider waiting for IV contraction or finding a closer-to-fair strike.`;
+    } else {
+      verdictClass = 'cheap';
+      verdictLabel = `PREMIUM IS CHEAP (${diffPct.toFixed(1)}%)`;
+      verdictText = `You're being asked $${mktPrem.toFixed(2)} but Black-Scholes values this at $${bs.price.toFixed(2)} — that's $${Math.abs(diff).toFixed(2)} below fair value. Potentially favorable entry on the premium side. Verify liquidity and bid-ask spread.`;
+    }
+  }
+
+  // Max profit / max loss for long option
+  const premiumPaid = isNaN(mktPrem) || mktPrem <= 0 ? bs.price : mktPrem;
+  const totalCost   = premiumPaid * 100 * contracts;
+
+  // P/L chart data — price range ±2 SD
+  const priceMin = Math.max(S * 0.7, S - 2 * expMoveAmt);
+  const priceMax = S + 2 * expMoveAmt;
+  const steps = 80;
+  const prices = [], pnls = [];
+  for (let i = 0; i <= steps; i++) {
+    const p = priceMin + (priceMax - priceMin) * (i / steps);
+    prices.push(p);
+    let val;
+    if (optionType === 'call') val = Math.max(p - K, 0);
+    else                        val = Math.max(K - p, 0);
+    pnls.push((val - premiumPaid) * 100 * contracts);
+  }
+
+  renderResults({
+    bs, G, S, K, T, sigma, r, q, optionType, DTE,
+    expMovePct, expMoveAmt, emLow, emHigh,
+    breakEvenPrice, moneyness, probITM,
+    verdictClass, verdictLabel, verdictText,
+    premiumPaid, totalCost, contracts,
+    prices, pnls, priceMin, priceMax, mktPrem
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderResults(d) {
+  const isCall  = d.optionType === 'call';
+  const otmAmt  = isCall ? d.K - d.S : d.S - d.K;
+  const itm     = otmAmt < 0;
+  const moneyTag = itm ? `<span style="color:var(--green)">ITM</span>` : `<span style="color:var(--muted)">OTM</span>`;
+
+  const html = `
+    ${d.verdictClass ? `
+    <div class="verdict ${d.verdictClass}">
+      <div class="verdict-label">${d.verdictLabel}</div>
+      <div class="verdict-text">${d.verdictText}</div>
+    </div>` : ''}
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Fair Value (BS)</div>
+        <div class="stat-value val-violet">$${d.bs.price.toFixed(2)}</div>
+        <div class="stat-sub">per share · ×100 = $${(d.bs.price*100).toFixed(0)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Break-Even at Expiry</div>
+        <div class="stat-value">${d.breakEvenPrice.toFixed(2)}</div>
+        <div class="stat-sub">${isCall?'above':'below'} this = profit</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Prob. of Profit (ITM)</div>
+        <div class="stat-value ${d.probITM > 50 ? 'val-green' : 'val-red'}">${d.probITM.toFixed(1)}%</div>
+        <div class="stat-sub">Black-Scholes N(d₂)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Moneyness</div>
+        <div class="stat-value">${moneyTag}</div>
+        <div class="stat-sub">${Math.abs((d.S-d.K)/d.K*100).toFixed(1)}% ${itm?'in':'out of'} the money</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Max Loss</div>
+        <div class="stat-value val-red">$${d.totalCost.toFixed(0)}</div>
+        <div class="stat-sub">${d.contracts} contract${d.contracts>1?'s':''} · premium paid</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Max Gain</div>
+        <div class="stat-value val-green">Unlimited</div>
+        <div class="stat-sub">long ${d.optionType} — uncapped upside</div>
+      </div>
+    </div>
+
+    <div class="greeks-row">
+      <div class="greek-card">
+        <div class="greek-sym" style="color:var(--blue)">Δ</div>
+        <div class="greek-name">Delta</div>
+        <div class="greek-val">${d.G.delta.toFixed(3)}</div>
+        <div class="greek-desc">$ move per $1 underlying move</div>
+      </div>
+      <div class="greek-card">
+        <div class="greek-sym" style="color:var(--green)">Γ</div>
+        <div class="greek-name">Gamma</div>
+        <div class="greek-val">${d.G.gamma.toFixed(4)}</div>
+        <div class="greek-desc">Delta change per $1 move</div>
+      </div>
+      <div class="greek-card">
+        <div class="greek-sym" style="color:var(--red)">Θ</div>
+        <div class="greek-name">Theta</div>
+        <div class="greek-val">${d.G.theta.toFixed(3)}</div>
+        <div class="greek-desc">$ lost per calendar day</div>
+      </div>
+      <div class="greek-card">
+        <div class="greek-sym" style="color:var(--yellow)">V</div>
+        <div class="greek-name">Vega</div>
+        <div class="greek-val">${d.G.vega.toFixed(3)}</div>
+        <div class="greek-desc">$ change per 1% IV move</div>
+      </div>
+      <div class="greek-card">
+        <div class="greek-sym" style="color:var(--accent)">ρ</div>
+        <div class="greek-name">Rho</div>
+        <div class="greek-val">${d.G.rho.toFixed(3)}</div>
+        <div class="greek-desc">$ change per 1% rate move</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">P&amp;L AT EXPIRATION · ${d.contracts} contract${d.contracts>1?'s':''} · ${d.DTE} DTE</div>
+      <canvas id="plChart" height="200"></canvas>
+    </div>
+
+    <div class="exp-move-bar">
+      <div class="em-label">EXPECTED MOVE BY EXPIRY (1 SD · ${d.expMovePct.toFixed(1)}%)</div>
+      <div class="em-track" id="emTrack">
+        <div class="em-fill-low"  id="emFillLow"></div>
+        <div class="em-fill-high" id="emFillHigh"></div>
+        <div class="em-center"    id="emCenter"></div>
+        <div class="em-strike"    id="emStrike"></div>
+      </div>
+      <div class="em-numbers">
+        <span>${d.emLow.toFixed(2)} (−1σ)</span>
+        <span style="color:var(--label)">${d.S.toFixed(2)} (now)</span>
+        <span>${d.emHigh.toFixed(2)} (+1σ)</span>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>Reading this trade:</strong> You're buying a ${d.DTE}-day <strong>${d.optionType.toUpperCase()}</strong> 
+      with a <strong>$${d.K.toFixed(2)} strike</strong> on a stock at <strong>$${d.S.toFixed(2)}</strong>. 
+      Fair value is <strong>$${d.bs.price.toFixed(2)}</strong> (total cost: <strong>$${(d.bs.price*100*d.contracts).toFixed(0)}</strong>). 
+      You need the stock to close ${isCall ? 'above' : 'below'} <strong>$${d.breakEvenPrice.toFixed(2)}</strong> at expiry to profit. 
+      The market prices a <strong>${d.expMovePct.toFixed(1)}%</strong> move by expiry — your break-even requires 
+      a <strong>${Math.abs((d.breakEvenPrice - d.S) / d.S * 100).toFixed(1)}%</strong> move. 
+      Black-Scholes gives this a <strong>${d.probITM.toFixed(1)}%</strong> chance of expiring in the money.
+      Theta is eating <strong>$${Math.abs(d.G.theta * 100 * d.contracts).toFixed(2)}/day</strong> in premium.
+    </div>
+  `;
+
+  document.getElementById('results').innerHTML = html;
+
+  // ── Draw P/L chart ──
+  drawChart(d);
+
+  // ── Expected move bar ──
+  const trackW = document.getElementById('emTrack').offsetWidth;
+  const rangeMin = d.S - 2.5 * d.expMoveAmt;
+  const rangeMax = d.S + 2.5 * d.expMoveAmt;
+  const toX = v => ((v - rangeMin) / (rangeMax - rangeMin) * 100).toFixed(2) + '%';
+  const centerX = toX(d.S);
+  const strikeX = toX(d.K);
+  const lowX    = toX(d.emLow);
+  const highX   = toX(d.emHigh);
+
+  document.getElementById('emCenter').style.left   = centerX;
+  document.getElementById('emStrike').style.left   = strikeX;
+  document.getElementById('emFillLow').style.left  = lowX;
+  document.getElementById('emFillLow').style.right = (100 - parseFloat(centerX)) + '%';
+  document.getElementById('emFillHigh').style.left  = centerX;
+  document.getElementById('emFillHigh').style.right = (100 - parseFloat(highX)) + '%';
+}
+
+function drawChart(d) {
+  const canvas = document.getElementById('plChart');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 600;
+  const H = 200;
+  canvas.width  = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  const pad = { top: 16, right: 16, bottom: 36, left: 64 };
+  const cW  = W - pad.left - pad.right;
+  const cH  = H - pad.top  - pad.bottom;
+
+  const maxLoss   = Math.min(...d.pnls);
+  const maxGain   = Math.max(...d.pnls);
+  const yPad      = Math.max(Math.abs(maxLoss), Math.abs(maxGain)) * 0.1;
+  const yMin      = maxLoss  - yPad;
+  const yMax      = maxGain  + yPad;
+
+  const toX = v => pad.left + ((v - d.priceMin) / (d.priceMax - d.priceMin)) * cW;
+  const toY = v => pad.top  + (1 - (v - yMin) / (yMax - yMin)) * cH;
+  const zeroY = toY(0);
+
+  // Background
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = '#1e2d45';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (cH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+  }
+
+  // Zero line
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(W - pad.right, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Break-even line
+  const bex = toX(d.breakEvenPrice);
+  ctx.strokeStyle = '#a78bfa';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(bex, pad.top); ctx.lineTo(bex, H - pad.bottom); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#a78bfa';
+  ctx.font = '10px Segoe UI';
+  ctx.fillText('B/E', bex + 3, pad.top + 12);
+
+  // Current price line
+  const cprX = toX(d.S);
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath(); ctx.moveTo(cprX, pad.top); ctx.lineTo(cprX, H - pad.bottom); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Filled P/L area
+  ctx.beginPath();
+  ctx.moveTo(toX(d.prices[0]), zeroY);
+  d.prices.forEach((p, i) => ctx.lineTo(toX(p), toY(d.pnls[i])));
+  ctx.lineTo(toX(d.prices[d.prices.length - 1]), zeroY);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  if (maxGain > 0 && maxLoss < 0) {
+    const zeroFrac = 1 - (0 - yMin) / (yMax - yMin);
+    grad.addColorStop(0,         'rgba(34,197,94,0.3)');
+    grad.addColorStop(zeroFrac,  'rgba(34,197,94,0.05)');
+    grad.addColorStop(zeroFrac,  'rgba(239,68,68,0.05)');
+    grad.addColorStop(1,         'rgba(239,68,68,0.3)');
+  } else if (maxLoss >= 0) {
+    grad.addColorStop(0, 'rgba(34,197,94,0.25)');
+    grad.addColorStop(1, 'rgba(34,197,94,0.05)');
+  } else {
+    grad.addColorStop(0, 'rgba(239,68,68,0.05)');
+    grad.addColorStop(1, 'rgba(239,68,68,0.25)');
+  }
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // P/L line
+  ctx.beginPath();
+  d.prices.forEach((p, i) => {
+    const x = toX(p), y = toY(d.pnls[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = d.pnls[d.pnls.length - 1] > 0 ? '#22c55e' : '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Y axis labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px Segoe UI';
+  ctx.textAlign = 'right';
+  const yTicks = 5;
+  for (let i = 0; i <= yTicks; i++) {
+    const v = yMin + (yMax - yMin) * (i / yTicks);
+    const y = toY(v);
+    ctx.fillText((v >= 0 ? '+' : '') + '$' + Math.round(v), pad.left - 4, y + 3);
+  }
+
+  // X axis labels
+  ctx.textAlign = 'center';
+  const xTicks = 5;
+  for (let i = 0; i <= xTicks; i++) {
+    const v = d.priceMin + (d.priceMax - d.priceMin) * (i / xTicks);
+    ctx.fillText('$' + v.toFixed(0), toX(v), H - pad.bottom + 14);
+  }
+
+  // Labels
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '9px Segoe UI';
+  ctx.textAlign = 'left';
+  ctx.fillText('Underlying price at expiry', pad.left, H - 4);
+}
+</script>
+</body>
+</html>
