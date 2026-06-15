@@ -36,6 +36,28 @@
   .hub-link { font-size: 12px; color: var(--label); text-decoration: none; border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; }
   .hub-link:hover { color: var(--accent); border-color: var(--accent); }
 
+  /* ── HOW TO BAR ── */
+  .howto-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+  }
+  .howto-toggle {
+    background: none; border: none; color: var(--label); font-size: 12px;
+    padding: 10px 0; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    width: 100%; text-align: left;
+  }
+  .howto-toggle:hover { color: var(--accent); }
+  .howto-toggle .arr { transition: transform 0.2s; display: inline-block; }
+  .howto-toggle.open .arr { transform: rotate(90deg); }
+  .howto-content { display: none; }
+  .howto-content.open { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding-bottom: 20px; }
+  .howto-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; }
+  .howto-card h4 { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; letter-spacing: 0.3px; }
+  .howto-card p  { font-size: 12px; color: var(--label); line-height: 1.65; }
+  .howto-card .example { margin-top: 8px; background: var(--surface); border-radius: 5px; padding: 7px 10px; font-size: 11px; color: var(--text); font-family: monospace; }
+  .howto-card .note { margin-top: 8px; font-size: 11px; color: var(--muted); font-style: italic; }
+
   /* ── LAYOUT ── */
   .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; min-height: calc(100vh - 65px); }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
@@ -159,6 +181,73 @@
     <div class="logo-sub">Pre-trade analysis · Black-Scholes · Greeks · P&L · Fair Value</div>
   </div>
   <a class="hub-link" href="https://cbell0920.github.io/tptraders-hub">← Hub</a>
+</div>
+
+
+<div class="howto-bar">
+  <button class="howto-toggle" id="howtoBtn" onclick="toggleHowto()">
+    <span class="arr">▶</span> HOW TO USE THIS CALCULATOR
+  </button>
+  <div class="howto-content" id="howtoContent">
+
+    <div class="howto-card">
+      <h4>📌 Underlying Price (S)</h4>
+      <p>The current stock price. Find it on any quote page — Yahoo Finance, Thinkorswim, Robinhood. Use the <em>last price</em> or mid of bid/ask.</p>
+      <div class="example">AAPL is trading at $211.50 → enter 211.50</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 Strike Price (K)</h4>
+      <p>The price you have the right to buy (call) or sell (put) the stock at. Choose this from the options chain in your broker. ATM = closest to current price.</p>
+      <div class="example">Buying the $215 call → enter 215</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 Days to Expiry (DTE)</h4>
+      <p>Calendar days until the option expires. Count from today to the expiration date. Most retail traders use 21–45 DTE for buying options.</p>
+      <div class="example">Expiry is 3 weeks away → enter 21</div>
+      <div class="note">Tip: shorter DTE = faster decay (Theta). Under 7 DTE is high risk for buyers.</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 IV % — Implied Volatility</h4>
+      <p>This is shown on your broker's options chain, usually labeled <strong>IV</strong> or <strong>Impl. Vol</strong>. It's already annualized — enter the number as-is. High IV = expensive premium.</p>
+      <div class="example">Options chain shows IV = 32.4% → enter 32.4</div>
+      <div class="note">Where to find it: Thinkorswim options chain → IV column. Yahoo Finance → Options tab → "Implied Volatility" per strike. Robinhood shows it on the option detail screen.</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 Risk-Free Rate %</h4>
+      <p>The current US Treasury yield — used as the "guaranteed" return rate in the Black-Scholes formula. Pre-filled at 5.25%. You rarely need to change this unless rates have moved significantly.</p>
+      <div class="example">Fed funds rate is ~5.25% → leave as-is</div>
+      <div class="note">Current rate: check Google for "10-year treasury yield" or use the Fed Funds rate. Small changes here have minimal impact on the calculated price.</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 Dividend Yield %</h4>
+      <p>The stock's annual dividend as a percentage of its price. Dividends reduce call value and increase put value slightly. Leave at 0 for non-dividend stocks.</p>
+      <div class="example">WMT pays ~1.3% annual dividend → enter 1.3<br>AAPL pays ~0.5% → enter 0.5<br>SPY ETF pays ~1.3% → enter 1.3<br>ONDS pays no dividend → leave 0</div>
+      <div class="note">Find it on Yahoo Finance → Summary page → "Forward Dividend & Yield".</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 Market Premium (Ask Price)</h4>
+      <p>The actual price being charged for the option in the market — the <em>ask</em> price on the options chain. Enter this to get the <strong>fair / rich / cheap</strong> verdict comparing market price to Black-Scholes fair value.</p>
+      <div class="example">The $215 call is asking $3.45 → enter 3.45</div>
+      <div class="note">If the market price is more than ~10% above BS fair value, implied volatility is elevated — you're paying a premium for uncertainty.</div>
+    </div>
+
+    <div class="howto-card">
+      <h4>📌 Reading the Results</h4>
+      <p><strong>Fair Value</strong> — what Black-Scholes says the option is worth.<br>
+      <strong>Break-Even</strong> — stock must reach this price at expiry for you to profit.<br>
+      <strong>Prob ITM</strong> — statistical chance of expiring in the money.<br>
+      <strong>Delta</strong> — how much the option moves per $1 in the stock.<br>
+      <strong>Theta</strong> — dollars you lose per day just from time passing.<br>
+      <strong>Expected Move</strong> — the range the market prices in by expiry (1 standard deviation).</p>
+    </div>
+
+  </div>
 </div>
 
 <div class="layout">
@@ -657,6 +746,13 @@ function drawChart(d) {
   ctx.font = '9px Segoe UI';
   ctx.textAlign = 'left';
   ctx.fillText('Underlying price at expiry', pad.left, H - 4);
+}
+
+function toggleHowto() {
+  const btn = document.getElementById('howtoBtn');
+  const panel = document.getElementById('howtoContent');
+  btn.classList.toggle('open');
+  panel.classList.toggle('open');
 }
 </script>
 </body>
