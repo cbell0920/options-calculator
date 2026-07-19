@@ -327,23 +327,29 @@
 
     <div class="field">
       <label>Your Planned Levels (optional)</label>
-      <div class="hint">Underlying prices — translates your structural stop/targets into an actual premium to set as a real order</div>
+      <div class="hint">Underlying prices — translates your structural entry/stop/targets into an actual premium to set as a real order</div>
     </div>
     <div class="field-row">
+      <div class="field">
+        <label>Entry Zone</label>
+        <input type="number" id="inEntryZone" placeholder="e.g. 210.00" step="0.01" />
+      </div>
       <div class="field">
         <label>Stop Price</label>
         <input type="number" id="inStop" placeholder="e.g. 205.00" step="0.01" />
       </div>
+    </div>
+    <div class="field-row">
       <div class="field">
         <label>Target 1</label>
         <input type="number" id="inT1" placeholder="e.g. 220.00" step="0.01" />
       </div>
-    </div>
-    <div class="field-row">
       <div class="field">
         <label>Target 2</label>
         <input type="number" id="inT2" placeholder="optional" step="0.01" />
       </div>
+    </div>
+    <div class="field-row">
       <div class="field">
         <label>Target 3</label>
         <input type="number" id="inT3" placeholder="optional" step="0.01" />
@@ -539,25 +545,33 @@ function calculate() {
   // actual premium estimate + $ P&L + R:R, same table shape as the journal app's
   // per-trade Stop/T1/T2/T3 estimator, so a trader can price out their plan before ever
   // logging the trade.
-  const stopPx = parseFloat(document.getElementById('inStop').value);
-  const t1Px   = parseFloat(document.getElementById('inT1').value);
-  const t2Px   = parseFloat(document.getElementById('inT2').value);
-  const t3Px   = parseFloat(document.getElementById('inT3').value);
+  const entryPx = parseFloat(document.getElementById('inEntryZone').value);
+  const stopPx  = parseFloat(document.getElementById('inStop').value);
+  const t1Px    = parseFloat(document.getElementById('inT1').value);
+  const t2Px    = parseFloat(document.getElementById('inT2').value);
+  const t3Px    = parseFloat(document.getElementById('inT3').value);
   function estAtPrice(p) {
     if (!p) return null;
     return lowDte
       ? Math.max(0, premiumPaid + G.delta * (p - S))
       : blackScholes(p, K, T, r, q, sigma, optionType).price;
   }
-  const levelRows = [['Stop', stopPx], ['T1', t1Px], ['T2', t2Px], ['T3', t3Px]]
+  const levelRows = [];
+  // Entry has no P&L/R:R yet — there's no cost basis until you're actually in the trade,
+  // so this row is just "what premium should I expect to pay here," nothing more.
+  if (entryPx > 0) {
+    const val = estAtPrice(entryPx);
+    if (val !== null) levelRows.push({ label:'Entry', px:entryPx, val, pnl:null, rr:null });
+  }
+  [['Stop', stopPx], ['T1', t1Px], ['T2', t2Px], ['T3', t3Px]]
     .filter(([, p]) => p > 0)
-    .map(([label, p]) => {
+    .forEach(([label, p]) => {
       const val = estAtPrice(p);
+      if (val === null) return;
       const pnl = (val - premiumPaid) * 100 * contracts;
       const rr  = premiumPaid > 0 ? (val - premiumPaid) / premiumPaid : null;
-      return { label, px: p, val, pnl, rr };
-    })
-    .filter(r => r.val !== null);
+      levelRows.push({ label, px: p, val, pnl, rr });
+    });
 
   renderResults({
     bs, G, S, K, T, sigma, r, q, optionType, DTE, lowDte,
@@ -667,12 +681,12 @@ function renderResults(d) {
           <div class="level-card">
             <div class="level-name">${r.label}</div>
             <div class="level-px">$${r.px.toFixed(2)} → $${r.val.toFixed(2)}</div>
-            <div class="level-pnl" style="color:${r.pnl>=0?'var(--green)':'var(--red)'}">${r.pnl>=0?'+':'-'}$${Math.abs(r.pnl).toFixed(0)}</div>
+            <div class="level-pnl" style="color:${r.pnl===null?'var(--muted)':r.pnl>=0?'var(--green)':'var(--red)'}">${r.pnl===null ? '—' : (r.pnl>=0?'+':'-') + '$' + Math.abs(r.pnl).toFixed(0)}</div>
             <div class="level-rr">${r.rr!==null ? (r.rr>=0?'+':'') + r.rr.toFixed(1) + 'x' : '—'}</div>
           </div>
         `).join('')}
       </div>
-      <div class="levels-footnote">${d.lowDte ? `Delta approx (Δ ${d.G.delta.toFixed(2)}) — more honest than BSM under 7 DTE` : `Black-Scholes at ${d.DTE} DTE`} · this is the premium to set as your actual stop/limit order, not the underlying price · estimates only, actual values will differ</div>
+      <div class="levels-footnote">${d.lowDte ? `Delta approx (Δ ${d.G.delta.toFixed(2)}) — more honest than BSM under 7 DTE` : `Black-Scholes at ${d.DTE} DTE`} · Entry shows the premium to expect, not P&L · Stop/Targets show P&L relative to your actual fill · this is the premium to set as your real stop/limit order, not the underlying price · estimates only, actual values will differ</div>
     </div>` : ''}
 
     <div class="exp-move-bar">
